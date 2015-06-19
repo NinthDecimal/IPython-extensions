@@ -13,7 +13,7 @@
 define(function () {
 
     var commitToGithub = function (repo, auth, tree) {
-        var auth = {Authorization: 'token ' + auth};
+        var headers = {Authorization: 'token ' + auth};
         var apiUrl = 'https://api.github.com/repos/' + repo + '/git';
 
         var onError = function (jqXHR, status, err) {
@@ -25,7 +25,7 @@ define(function () {
             // fetch latest commit sha
             $.ajax(apiUrl + '/trees/master', {
                 type: 'GET',
-                headers: auth,
+                headers: headers,
                 error: onError,
                 success: function (data, status) {
                     pushTree(data.sha);
@@ -37,7 +37,7 @@ define(function () {
             // post new tree
             $.ajax(apiUrl + '/trees', {
                 type: 'POST',
-                headers: auth,
+                headers: headers,
                 data: JSON.stringify({base_tree: baseTree, tree: tree}),
                 error: onError,
                 success: function (data, status) {
@@ -55,7 +55,7 @@ define(function () {
             };
             $.ajax(apiUrl + '/commits', {
                 type: 'POST',
-                headers: auth,
+                headers: headers,
                 data: JSON.stringify(commitData),
                 error: onError,
                 success: function (data, status) {
@@ -68,14 +68,14 @@ define(function () {
             // update master
             $.ajax(apiUrl + '/refs/heads/master', {
                 type: 'PATCH',
-                headers: auth,
+                headers: headers,
                 data: JSON.stringify({sha: ref, force: true}),
                 error: onError,
                 success: function (data, status) {
                     console.log('Success');
                     console.log(data);
                     IPython.notebook.metadata.git_repo = repo;
-                    IPython.notebook.metadata.git_auth = auth;
+                    //IPython.notebook.metadata.git_auth = auth;
                     IPython.notification_area.get_widget('notebook').set_message('Commit succeeded: ' + data.object.sha, 1500);
                 }
             });
