@@ -223,7 +223,7 @@ define(function () {
             $([IPython.events]).on('app_initialized.NotebookApp', githubButton);
             return;
         }
-        if ($('#githu-notebook').length === 0) {
+        if ($('#github-notebook').length === 0) {
             IPython.toolbar.add_buttons_group([
                 {
                     'label': 'Push Notebook to GitHub',
