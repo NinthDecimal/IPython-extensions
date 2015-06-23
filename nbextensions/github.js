@@ -76,7 +76,7 @@ define(function () {
                     console.log(data);
                     IPython.notebook.metadata.git_repo = repo;
                     //IPython.notebook.metadata.git_auth = auth;
-                    IPython.notification_area.get_widget('notebook').set_message('Commit succeeded: ' + data.object.sha, 1500);
+                    IPython.notification_area.get_widget('notebook').set_message('Committed ' + data.object.sha, 1500);
                 }
             });
         };
@@ -178,9 +178,9 @@ define(function () {
     // get the GitHub auth
     var getGithubAuth = function () {
         var auth = localStorage[authName];
-        if (!auth) {
-            auth = IPython.notebook.metadata.git_auth = auth;
-        }
+        //if (!auth) {
+        //    auth = IPython.notebook.metadata.git_auth = auth;
+        //}
         if (!auth) {
             authDialog();
             return null;
@@ -227,7 +227,7 @@ define(function () {
             IPython.toolbar.add_buttons_group([
                 {
                     'label': 'Push Notebook to GitHub',
-                    'icon': 'fa-share',
+                    'icon': 'fa-github',
                     'callback': commitNotebookToGithub,
                     'id': 'github-notebook'
                 }
