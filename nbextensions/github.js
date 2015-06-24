@@ -12,13 +12,22 @@
 */
 define(function () {
 
+    var repoName = 'github_repo';
+    var authName = 'github_auth';
+
     var commitToGithub = function (repo, auth, tree) {
         var headers = {Authorization: 'token ' + auth};
         var apiUrl = 'https://api.github.com/repos/' + repo + '/git';
 
         var onError = function (jqXHR, status, err) {
-            console.log('failed: ' + err);
+            console.log('Push to github failed: ' + err);
             console.log(jqXHR);
+            if (jqXHR.status == 403) {
+                // authentication failed, delete the token
+                // so that we prompt again
+                delete localStorage[authName];
+                commitNotebookToGithub();
+            }
         };
 
         var doCommitToGithub = function () {
@@ -72,19 +81,16 @@ define(function () {
                 data: JSON.stringify({sha: ref, force: true}),
                 error: onError,
                 success: function (data, status) {
-                    console.log('Success');
-                    console.log(data);
                     IPython.notebook.metadata.git_repo = repo;
-                    //IPython.notebook.metadata.git_auth = auth;
-                    IPython.notification_area.get_widget('notebook').set_message('Committed ' + data.object.sha, 1500);
+                    var commitUrl = 'https://github.com/' + repo + '/commit/' + data.object.sha;
+                    var commitLink = '<a href="' + commitUrl + '" target="_blank">' + data.object.sha + '</a>';
+                    IPython.notification_area.get_widget('notebook').set_message('Committed ' + commitLink, 1500);
                 }
             });
         };
 
         doCommitToGithub();
     };
-
-    var repoName = 'github_repo';
 
     // dialog to request GitHub repo
     var repoDialog = function () {
@@ -122,8 +128,6 @@ define(function () {
             }
         });
     };
-
-    var authName = 'github_auth';
 
     // dialog to request GitHub OAuth token
     var authDialog = function () {
@@ -178,9 +182,6 @@ define(function () {
     // get the GitHub auth
     var getGithubAuth = function () {
         var auth = localStorage[authName];
-        //if (!auth) {
-        //    auth = IPython.notebook.metadata.git_auth = auth;
-        //}
         if (!auth) {
             authDialog();
             return null;
