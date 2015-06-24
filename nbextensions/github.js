@@ -84,7 +84,9 @@ define(function () {
                     IPython.notebook.metadata.git_repo = repo;
                     var commitUrl = 'https://github.com/' + repo + '/commit/' + data.object.sha;
                     var commitLink = '<a href="' + commitUrl + '" target="_blank">' + data.object.sha + '</a>';
-                    IPython.notification_area.get_widget('notebook').set_message('Committed ' + commitLink, 1500);
+                    var widget = IPython.notification_area.get_widget('notebook');
+                    widget.set_message('Committed', 3000);
+                    widget.inner.html('Committed ' + commitLink);
                 }
             });
         };
