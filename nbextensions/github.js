@@ -22,7 +22,7 @@ define(function () {
         var onError = function (jqXHR, status, err) {
             console.log('Push to github failed: ' + err);
             console.log(jqXHR);
-            if (jqXHR.status == 403) {
+            if (jqXHR.status == 401 || jqXHR.status == 403) {
                 // authentication failed, delete the token
                 // so that we prompt again
                 delete localStorage[authName];
