@@ -12,8 +12,7 @@
 */
 define(function () {
 
-    var repoName = 'github_repo';
-    var authName = 'github_auth';
+    var gitRepo = null;
 
     var commitToGithub = function (repo, auth, tree) {
         var headers = {Authorization: 'token ' + auth};
@@ -22,11 +21,14 @@ define(function () {
         var onError = function (jqXHR, status, err) {
             console.log('Push to github failed: ' + err);
             console.log(jqXHR);
-            if (jqXHR.status == 401 || jqXHR.status == 403) {
+            if (jqXHR.status === 401 || jqXHR.status === 403) {
                 // authentication failed, delete the token
                 // so that we prompt again
-                delete localStorage[authName];
-                commitNotebookToGithub();
+                delete localStorage.githubAuth;
+                doCommitNotebookToGithub();
+            } else {
+                var widget = IPython.notification_area.get_widget('notebook');
+                widget.set_message('Push to GitHub failed: ' + err, 3000);
             }
         };
 
@@ -81,6 +83,7 @@ define(function () {
                 data: JSON.stringify({sha: ref, force: true}),
                 error: onError,
                 success: function (data, status) {
+                    // write the repo to metadata
                     IPython.notebook.metadata.git_repo = repo;
                     var commitUrl = 'https://github.com/' + repo + '/commit/' + data.object.sha;
                     var commitLink = '<a href="' + commitUrl + '" target="_blank">' + data.object.sha + '</a>';
@@ -95,38 +98,54 @@ define(function () {
     };
 
     // dialog to request GitHub repo
-    var repoDialog = function () {
+    var repoDialog = function (repo) {
         var dialog = $('<div/>').append(
-            $('<p/>').html('Enter a GitHub Repo (in a <repr>:owner/:repo</repr> format):')
+            $('<p/>')
+                .addClass('repo-message')
+                .html('Enter a GitHub Repo (in a <repr>:owner/:repo</repr> format):')
         ).append(
             $('<br/>')
         ).append(
-            $('<input/>').attr('type', 'text').attr('size', '40')
+            $('<input/>')
+                .addClass('form-control')
+                .attr('type', 'text')
+                .attr('size', '25')
+                .val(repo)
         );
-        IPython.dialog.modal({
+        var d = IPython.dialog.modal({
             title: 'GitHub Repo',
             body: dialog,
+            keyboard_manager: IPython.notebook.keyboard_manager,
             buttons: {
-                'Cancel': {},
                 'OK': {
                     'class': 'btn-primary',
                     'click': function () {
-                        var repo = $(this).find('input').val();
-                        localStorage[repoName] = repo;
-                        commitNotebookToGithub();
+                        var repo = d.find('input').val();
+                        if (repo.split('/').length !== 2) {
+                            d.find('.repo-message').html(
+                                'Invalid Repo. Repo must be in <repr>:owner/:repo</repr> format. ' +
+                                'Enter a GitHub Repo (in a <repr>:owner/:repo</repr> format):'
+                            );
+                            return false;
+                        } else {
+                            gitRepo = repo;
+                            doCommitNotebookToGithub();
+                        }
                     }
-                }
+                },
+                'Cancel': {}
             },
-            open: function (event, ui) {
-                var that = $(this);
+            open: function () {
+                // make sure "shortcut mode" is disabled
+                IPython.notebook.keyboard_manager.enabled = false;
                 // Upon ENTER, click the OK button.
-                that.find('input[type="text"]').keydown(function (event, ui) {
-                    if (event.which === 13) {
-                        that.find('.btn-primary').first().click();
+                d.find('input[type="text"]').keydown(function (event) {
+                    if (event.which === IPython.keyboard.keycodes.enter) {
+                        d.find('.btn-primary').first().click();
                         return false;
                     }
                 });
-                that.find('input[type="text"]').focus().select();
+                d.find('input[type="text"]').focus().select();
             }
         });
     };
@@ -134,48 +153,51 @@ define(function () {
     // dialog to request GitHub OAuth token
     var authDialog = function () {
         var dialog = $('<div/>').append(
-            $('<p/>').html('Enter a <a href="https://github.com/settings/applications" target="_blank">GitHub OAuth Token</a>:')
+            $('<p/>')
+                .addClass('auth-message')
+                .html('Enter a <a href="https://github.com/settings/applications" target="_blank">GitHub OAuth Token</a>:')
         ).append(
             $('<br/>')
         ).append(
-            $('<input/>').attr('type', 'text').attr('size', '40')
+            $('<input/>')
+                .addClass('form-control')
+                .attr('type', 'text')
+                .attr('size', '25')
         );
-        IPython.dialog.modal({
-            title: 'GitHub OAuth',
+        var d = IPython.dialog.modal({
+            title: 'GitHub Auth',
             body: dialog,
+            keyboard_manager: IPython.notebook.keyboard_manager,
             buttons: {
-                'Cancel': {},
                 'OK': {
                     'class': 'btn-primary',
                     'click': function () {
-                        var auth = $(this).find('input').val();
-                        localStorage[authName] = auth;
-                        commitNotebookToGithub();
+                        localStorage.githubAuth = $(this).find('input').val();
+                        doCommitNotebookToGithub();
                     }
-                }
+                },
+                'Cancel': {}
             },
-            open: function (event, ui) {
-                var that = $(this);
+            open: function () {
+                // make sure "shortcut mode" is disabled
+                IPython.notebook.keyboard_manager.enabled = false;
                 // Upon ENTER, click the OK button.
-                that.find('input[type="text"]').keydown(function (event, ui) {
-                    if (event.which === 13) {
-                        that.find('.btn-primary').first().click();
+                d.find('input[type="text"]').keydown(function (event) {
+                    if (event.which === IPython.keyboard.keycodes.enter) {
+                        d.find('.btn-primary').first().click();
                         return false;
                     }
                 });
-                that.find('input[type="text"]').focus().select();
+                d.find('input[type="text"]').focus().select();
             }
         });
     };
 
     // get the GitHub repo
     var getGithubRepo = function () {
-        var repo = localStorage[repoName];
+        repo = gitRepo;
         if (!repo) {
-            repo = IPython.notebook.metadata.git_repo = repo;
-        }
-        if (!repo) {
-            repoDialog();
+            repoDialog(IPython.notebook.metadata.git_repo);
             return null;
         }
         return repo;
@@ -183,7 +205,7 @@ define(function () {
 
     // get the GitHub auth
     var getGithubAuth = function () {
-        var auth = localStorage[authName];
+        var auth = localStorage.githubAuth;
         if (!auth) {
             authDialog();
             return null;
@@ -191,10 +213,7 @@ define(function () {
         return auth;
     };
 
-    var commitNotebookToGithub = function () {
-        if (!IPython.notebook) {
-            return;
-        }
+    var doCommitNotebookToGithub = function () {
         // dialog's are async, so we can't do anything yet.
         // the dialog OK callback will continue the process.
         var repo = getGithubRepo();
@@ -219,6 +238,15 @@ define(function () {
             type: 'blob'
         }];
         commitToGithub(repo, auth, tree);
+    };
+
+    var commitNotebookToGithub = function () {
+        if (!IPython.notebook) {
+            return;
+        }
+        // reset gitRepo to force repo dialog
+        gitRepo = null;
+        doCommitNotebookToGithub();
     };
 
     var githubButton = function () {
